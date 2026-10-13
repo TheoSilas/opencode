@@ -381,6 +381,7 @@ const EndpointSessionCreate = (raw: RawClient["server.session"]) => (input?: Ses
         location: input?.["location"],
         metadata: input?.["metadata"],
         permissions: input?.["permissions"],
+        credentialID: input?.["credentialID"],
       },
     }).pipe(
       Effect.mapError(mapClientError),
@@ -453,7 +454,7 @@ const EndpointSessionUpdate = (raw: RawClient["server.session"]) => (input: Sess
   preserveEffect<SessionUpdateOutput>()(
     raw["session.update"]({
       params: { sessionID: input["sessionID"] },
-      payload: { title: input["title"], permissions: input["permissions"] },
+      payload: { title: input["title"], permissions: input["permissions"], credentialID: input["credentialID"] },
     }).pipe(Effect.mapError(mapClientError)),
   )
 
@@ -475,6 +476,7 @@ const EndpointSessionPrompt = (raw: RawClient["server.session"]) => (input: Sess
         files: input["files"],
         agents: input["agents"],
         skills: input["skills"],
+        credentialID: input["credentialID"],
         metadata: input["metadata"],
         delivery: input["delivery"],
         resume: input["resume"],
@@ -495,6 +497,7 @@ const EndpointSessionCommand = (raw: RawClient["server.session"]) => (input: Ses
         files: input["files"],
         agents: input["agents"],
         skills: input["skills"],
+        credentialID: input["credentialID"],
         delivery: input["delivery"],
       },
     }).pipe(Effect.mapError(mapClientError)),

@@ -133,6 +133,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                 model: ctx.payload.model,
                 metadata: ctx.payload.metadata,
                 permissions: ctx.payload.permissions,
+                credentialID: ctx.payload.credentialID,
                 location: ctx.payload.location ?? { directory: AbsolutePath.make(process.cwd()) },
               })
               .pipe(Effect.orDie),
@@ -269,6 +270,10 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
           if (ctx.payload.permissions !== undefined)
             yield* session
               .setPermissions({ sessionID: ctx.params.sessionID, permissions: ctx.payload.permissions })
+               .pipe(Effect.catchTag("Session.NotFoundError", missingSession))
+          if (ctx.payload.credentialID !== undefined)
+            yield* session
+              .switchCredential({ sessionID: ctx.params.sessionID, credentialID: ctx.payload.credentialID })
               .pipe(Effect.catchTag("Session.NotFoundError", missingSession))
           return HttpApiSchema.NoContent.make()
         }),
@@ -312,6 +317,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                 metadata: ctx.payload.metadata,
                 delivery: ctx.payload.delivery,
                 resume: ctx.payload.resume,
+                credentialID: ctx.payload.credentialID,
               })
               .pipe(
                 Effect.catchTag("Session.NotFoundError", missingSession),

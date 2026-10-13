@@ -41,6 +41,8 @@ export const UnresolvedProviderVariablesError = ModelResolver.UnresolvedProvider
 export type UnresolvedProviderVariablesError = ModelResolver.UnresolvedProviderVariablesError
 export const UnsupportedCompactionError = ModelResolver.UnsupportedCompactionError
 export type UnsupportedCompactionError = ModelResolver.UnsupportedCompactionError
+export const CredentialBindingError = ModelResolver.CredentialBindingError
+export type CredentialBindingError = ModelResolver.CredentialBindingError
 
 export type Error = ModelNotSelectedError | ModelUnavailableError | ModelResolver.Error
 export type Resolved = ModelResolver.Resolved
@@ -88,7 +90,7 @@ const layer = Layer.effect(
       resolve: Effect.fn("SessionRunnerModel.resolve")(function* (session, available) {
         // Location plugins populate and filter the catalog asynchronously during layer startup.
         if (!session.model) {
-          const resolved = yield* resolver.resolve()
+          const resolved = yield* resolver.resolve(undefined, session.taskCredentialID ?? session.credentialID)
           if (resolved) return resolved
           return yield* new ModelNotSelectedError({ sessionID: session.id })
         }
@@ -100,7 +102,7 @@ const layer = Layer.effect(
             providerID: session.model.providerID,
             modelID: session.model.id,
           })
-        return yield* resolver.resolveModel(selected, session.model.variant)
+        return yield* resolver.resolveModel(selected, session.model.variant, session.taskCredentialID ?? session.credentialID)
       }),
     })
   }),

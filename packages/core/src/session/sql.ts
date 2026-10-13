@@ -56,6 +56,8 @@ export const SessionTable = sqliteTable(
       providerID: string
       variant?: string
     }>(),
+    credential_id: text(),
+    task_credential_id: text(),
     ...Timestamps,
     time_idle: integer(),
     time_viewed: integer(),

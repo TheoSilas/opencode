@@ -226,6 +226,7 @@ export const makeSessionGroup = <
           location: Location.PublicRef.pipe(Schema.optional),
           metadata: Session.Metadata.pipe(Schema.optional),
           permissions: Permission.Ruleset.pipe(Schema.optional),
+          credentialID: Session.Info.fields.credentialID,
         }),
         success: Schema.Struct({ data: PublicSessionInfo }),
       }).annotateMerge(
@@ -360,6 +361,7 @@ export const makeSessionGroup = <
         payload: Schema.Struct({
           title: Schema.String.pipe(Schema.optional),
           permissions: Permission.Ruleset.pipe(Schema.optional),
+          credentialID: Session.Info.fields.credentialID,
         }),
         success: HttpApiSchema.NoContent,
         error: SessionNotFoundError,
@@ -396,6 +398,7 @@ export const makeSessionGroup = <
           metadata: SessionInbox.UserPayload.fields.metadata,
           delivery: SessionInbox.Delivery.pipe(Schema.optional),
           resume: Schema.Boolean.pipe(Schema.optional),
+          credentialID: SessionInbox.UserPayload.fields.credentialID,
         }),
         success: Schema.Struct({ data: SessionInbox.User }),
         error: [ConflictError, InvalidRequestError, SessionNotFoundError],

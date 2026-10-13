@@ -7,6 +7,7 @@ import { Prompt } from "./prompt.js"
 import { DateTimeUtcFromMillis, optional, RelativePath } from "./schema.js"
 import { SessionID } from "./session-id.js"
 import { SessionMessage } from "./session-message.js"
+import { Credential } from "./credential.js"
 
 export const Delivery = Schema.Literals(["steer", "queue"]).annotate({ identifier: "Session.Inbox.Delivery" })
 export type Delivery = typeof Delivery.Type
@@ -15,6 +16,7 @@ export interface UserPayload extends Schema.Schema.Type<typeof UserPayload> {}
 export const UserPayload = Schema.Struct({
   ...Prompt.fields,
   metadata: Schema.Record(Schema.String, Schema.Unknown).pipe(optional),
+  credentialID: Credential.ID.pipe(optional),
 }).annotate({ identifier: "Session.Inbox.UserPayload" })
 
 export interface SyntheticPayload extends Schema.Schema.Type<typeof SyntheticPayload> {}

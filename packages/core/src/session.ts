@@ -18,6 +18,7 @@ import { SessionMessageTable } from "./session/sql.js"
 import { SessionSchema } from "./session/schema.js"
 import { RelativePath } from "./schema.js"
 import { Agent } from "@opencode/schema/agent"
+import { Credential } from "@opencode/schema/credential"
 import type { Permission } from "@opencode/schema/permission"
 import { App } from "./app.js"
 import { Slug } from "./util/slug.js"
@@ -86,6 +87,7 @@ type CreateBaseInput = {
   model?: Model.Ref
   metadata?: SessionSchema.Metadata
   permissions?: Permission.Ruleset
+  credentialID?: Credential.ID
 }
 type CreateInput = CreateBaseInput &
   ({ location: Location.Ref; parentID?: never } | { parentID: SessionSchema.ID; location?: never })
@@ -169,6 +171,7 @@ export interface Interface {
   }) => Stream.Stream<SessionEvent.DurableEvent | EventLog.Synced, NotFoundError>
   readonly switchAgent: (input: { sessionID: SessionSchema.ID; agent: Agent.ID }) => Effect.Effect<void, NotFoundError>
   readonly switchModel: (input: { sessionID: SessionSchema.ID; model: Model.Ref }) => Effect.Effect<void, NotFoundError>
+  readonly switchCredential: (input: { sessionID: SessionSchema.ID; credentialID?: import("@opencode/schema/credential").Credential.ID }) => Effect.Effect<void, NotFoundError>
   readonly rename: (input: { sessionID: SessionSchema.ID; title: string }) => Effect.Effect<void, NotFoundError>
   readonly setPermissions: (input: {
     sessionID: SessionSchema.ID
@@ -276,7 +279,8 @@ const layer = Layer.effect(
                     providerID: input.model.providerID,
                     variant: input.model.variant,
                   }
-                : undefined,
+               : undefined,
+               credentialID: input.credentialID ?? parent?.credentialID,
             },
             { location },
           )
@@ -416,6 +420,7 @@ const layer = Layer.effect(
       skill: (input) => sessions.forSession(input.sessionID).skill(input),
       switchAgent: (input) => sessions.forSession(input.sessionID).switchAgent(input),
       switchModel: (input) => sessions.forSession(input.sessionID).switchModel(input),
+      switchCredential: (input) => sessions.forSession(input.sessionID).switchCredential(input),
       rename: (input) => sessions.forSession(input.sessionID).rename(input),
       setPermissions: (input) => sessions.forSession(input.sessionID).setPermissions(input),
       move: moves.move,

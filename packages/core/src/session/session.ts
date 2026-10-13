@@ -4,6 +4,7 @@ import { DateTime, Effect, Fiber, Scope } from "effect"
 import type { Agent } from "@opencode/schema/agent"
 import type { Model } from "@opencode/schema/model"
 import type { Permission } from "@opencode/schema/permission"
+import type { Credential } from "@opencode/schema/credential"
 import { Event } from "@opencode/schema/event"
 import { FSUtil } from "@opencode/util/fs-util"
 import { Bus } from "../bus.js"
@@ -99,6 +100,18 @@ export const make = Effect.fn("Session.make")(function* () {
     )
       return
     yield* bus.publish(SessionEvent.ModelSelected, { sessionID, model: input.model, previous: session.model })
+  })
+  const switchCredential = Effect.fn("Session.switchCredential")(function* (
+    sessionID: SessionSchema.ID,
+    input: { credentialID?: Credential.ID },
+  ) {
+    const session = yield* get(sessionID)
+    if (session.credentialID === input.credentialID) return
+    yield* bus.publish(SessionEvent.CredentialSelected, {
+      sessionID,
+      credentialID: input.credentialID,
+      previous: session.credentialID,
+    })
   })
   const mutatePending = (
     sessionID: SessionSchema.ID,
@@ -345,6 +358,7 @@ export const make = Effect.fn("Session.make")(function* () {
     setPermissions,
     switchAgent,
     switchModel,
+    switchCredential,
     inbox,
     prompt,
     synthetic,
@@ -368,6 +382,7 @@ export const make = Effect.fn("Session.make")(function* () {
     const setPermissions = operations.setPermissions.bind(undefined, sessionID)
     const switchAgent = operations.switchAgent.bind(undefined, sessionID)
     const switchModel = operations.switchModel.bind(undefined, sessionID)
+    const switchCredential = operations.switchCredential.bind(undefined, sessionID)
     const inbox = operations.inbox.bind(undefined, sessionID)
     const prompt = operations.prompt.bind(undefined, sessionID)
     const synthetic = operations.synthetic.bind(undefined, sessionID)
@@ -394,6 +409,7 @@ export const make = Effect.fn("Session.make")(function* () {
       setPermissions,
       switchAgent,
       switchModel,
+      switchCredential,
       inbox,
       prompt,
       synthetic,

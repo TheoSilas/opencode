@@ -159,6 +159,8 @@ const projectFork = Effect.fn("SessionProjector.projectFork")(function* (
       title: forkTitle(parent.title ?? undefined),
       agent: parent.agent,
       model: parent.model,
+      credential_id: parent.credential_id,
+      task_credential_id: null,
       metadata: parent.metadata,
       permission: parent.permission,
       version: parent.version,
@@ -410,6 +412,12 @@ function projectIdle(
   return Effect.gen(function* () {
     yield* run(db, event)
     if (event.type === SessionEvent.Execution.Interrupted.type && event.data.reason === "shutdown") return
+    yield* db
+      .update(SessionTable)
+      .set({ task_credential_id: null, time_updated: sql`${SessionTable.time_updated}` })
+      .where(eq(SessionTable.id, event.data.sessionID))
+      .run()
+      .pipe(Effect.orDie)
     const time = event.created
     const outcome =
       event.type === SessionEvent.Execution.Succeeded.type
@@ -450,6 +458,8 @@ const layer = Layer.effectDiscard(
             title: event.data.title,
             agent: event.data.agent,
             model: event.data.model,
+            credential_id: event.data.credentialID,
+            task_credential_id: null,
             metadata: event.data.metadata,
             permission: event.data.permissions,
             version: event.data.version,
@@ -596,6 +606,12 @@ const layer = Layer.effectDiscard(
         .pipe(Effect.orDie)
     })
     yield* bus.project(SessionEvent.MessageContentUpdated, (event) => run(db, event))
+    yield* bus.project(SessionEvent.CredentialSelected, (event) =>
+      db.update(SessionTable)
+        .set({ credential_id: event.data.credentialID ?? null, time_updated: event.created })
+        .where(eq(SessionTable.id, event.data.sessionID))
+        .run().pipe(Effect.orDie),
+    )
     yield* bus.project(SessionEvent.UsageRecorded, (event) => applyUsage(db, event.data.sessionID, event.data))
     yield* bus.project(SessionEvent.Forked, (event) => projectFork(db, event))
     yield* bus.project(SessionEvent.InboxDelivered, (event) =>
@@ -604,6 +620,13 @@ const layer = Layer.effectDiscard(
           id: event.data.inboxID,
           sessionID: event.data.sessionID,
         })
+        // Control and synthetic inbox items are part of the current execution;
+        // delivering compaction must not replace the promoted user's binding.
+        if (input.type === "user")
+          yield* db.update(SessionTable)
+            .set({ task_credential_id: input.payload.credentialID ?? null })
+            .where(eq(SessionTable.id, event.data.sessionID))
+            .run().pipe(Effect.orDie)
         if (input.type === "compaction" || input.type === "move") return
         yield* insertMessage(
           db,
@@ -617,6 +640,7 @@ const layer = Layer.effectDiscard(
                 files: input.payload.files,
                 agents: input.payload.agents,
                 skills: input.payload.skills,
+                credentialID: input.payload.credentialID,
                 time: { created: DateTime.makeUnsafe(event.created) },
               }
             : {

@@ -98,6 +98,15 @@ export class UnsupportedCompactionError extends Schema.TaggedError<UnsupportedCo
   }
 }
 
+export class CredentialBindingError extends Schema.TaggedError<CredentialBindingError>()(
+  "ModelResolver.CredentialBindingError",
+  { credentialID: Credential.ID, reason: Schema.String },
+) {
+  override get message() {
+    return `Credential ${this.credentialID} is unavailable: ${this.reason}`
+  }
+}
+
 export type Error =
   | VariantUnavailableError
   | UnsupportedPackageError
@@ -106,6 +115,7 @@ export type Error =
   | UnresolvedProviderVariablesError
   | UnsupportedCompactionError
   | Integration.AuthorizationError
+  | CredentialBindingError
 
 export interface Resolved {
   /** Route-level model for provider requests; its id is the provider API model id, which may differ from the catalog id. */
@@ -125,8 +135,8 @@ export interface Resolved {
 }
 
 export interface Interface {
-  readonly resolve: (requested?: Ref) => Effect.Effect<Resolved | undefined, Error>
-  readonly resolveModel: (model: Info, variant?: VariantID) => Effect.Effect<Resolved, Error>
+  readonly resolve: (requested?: Ref, credentialID?: Credential.ID) => Effect.Effect<Resolved | undefined, Error>
+  readonly resolveModel: (model: Info, variant?: VariantID, credentialID?: Credential.ID) => Effect.Effect<Resolved, Error>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/ModelResolver") {}
@@ -352,14 +362,28 @@ export const layer = Layer.effect(
     const providers = yield* Provider.Service
     const models = yield* Model.Service
     const integrations = yield* Integration.Service
+    const credentials = yield* Credential.Service
     const npm = yield* Npm.Service
     const aisdk = yield* AISDK.Service
-    const load = Effect.fn("ModelResolver.resolveModel")(function* (selected: Info, variant?: VariantID) {
+    const load = Effect.fn("ModelResolver.resolveModel")(function* (
+      selected: Info,
+      variant?: VariantID,
+      credentialID?: Credential.ID,
+    ) {
       const provider = yield* providers.get(selected.providerID)
-      const connection = yield* integrations.connection.active(
-        provider?.integrationID ?? Integration.ID.make(selected.providerID),
-      )
+      const integrationID = provider?.integrationID ?? Integration.ID.make(selected.providerID)
+      const stored = credentialID ? yield* credentials.get(credentialID) : undefined
+      if (credentialID) {
+        if (!stored) return yield* new CredentialBindingError({ credentialID, reason: "credential not found" })
+        if (stored.integrationID !== integrationID)
+          return yield* new CredentialBindingError({ credentialID, reason: "credential belongs to another provider" })
+      }
+      const connection = stored
+        ? { type: "credential" as const, id: stored.id, label: stored.label }
+        : yield* integrations.connection.active(integrationID)
       const credential = connection ? yield* integrations.connection.resolve(connection) : undefined
+      if (credentialID && !credential)
+        return yield* new CredentialBindingError({ credentialID, reason: "credential is unavailable" })
       const selectedVariant = yield* withVariant(selected, variant)
       const runtimeInfo: RuntimeInfo = {
         ...selectedVariant,
@@ -391,7 +415,7 @@ export const layer = Layer.effect(
       }
     })
     return Service.of({
-      resolve: Effect.fn("ModelResolver.resolve")(function* (requested) {
+      resolve: Effect.fn("ModelResolver.resolve")(function* (requested, credentialID) {
         const selected = requested
           ? yield* models.get(requested.providerID, requested.id)
           : yield* models
@@ -404,7 +428,7 @@ export const layer = Layer.effect(
                 ),
               )
         if (!selected) return undefined
-        return yield* load(selected, requested?.variant)
+        return yield* load(selected, requested?.variant, credentialID)
       }),
       resolveModel: load,
     })
@@ -458,5 +482,5 @@ function usesAPIKeyAuth(packageName: string | undefined) {
 export const node = makeLocationNode({
   service: Service,
   layer,
-  deps: [Provider.node, Model.node, Integration.node, Npm.node, AISDK.node],
+  deps: [Provider.node, Model.node, Integration.node, Credential.node, Npm.node, AISDK.node],
 })

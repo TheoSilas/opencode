@@ -1,4 +1,5 @@
 import { describe, expect } from "bun:test"
+import os from "node:os"
 import { Cause, Deferred, Effect, Exit, Layer, Queue } from "effect"
 import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
 import { LayerNode } from "@opencode/util/effect/layer-node"
@@ -15,7 +16,7 @@ type PtyEvent = { type: "created" | "exited" | "deleted"; id: PtyID }
 
 const locationLayer = Layer.succeed(
   Location.Service,
-  Location.Service.of(location({ directory: AbsolutePath.make("/tmp") })),
+  Location.Service.of(location({ directory: AbsolutePath.make(os.tmpdir()) })),
 )
 const it = testEffect(
   AppNodeBuilder.build(LayerNode.group([Pty.node, Bus.node]), [Location.node.replace(locationLayer)]),
@@ -41,7 +42,7 @@ const subscribePtyEvents = Effect.fn("PtySessionTest.subscribePtyEvents")(functi
 const createPty = Effect.fn("PtySessionTest.createPty")(function* (command: string, args: string[] = []) {
   const pty = yield* Pty.Service
   return yield* Effect.acquireRelease(
-    pty.create({ command, args, cwd: "/tmp", env: { TERM: "xterm-256color", OPENCODE_TERMINAL: "1" } }),
+    pty.create({ command, args, cwd: os.tmpdir(), env: { TERM: "xterm-256color", OPENCODE_TERMINAL: "1" } }),
     (info) => pty.remove(info.id).pipe(Effect.ignore),
   )
 })
@@ -110,7 +111,7 @@ describe("pty", () => {
     Effect.gen(function* () {
       const pty = yield* Pty.Service
       const events = yield* subscribePtyEvents()
-      const info = yield* createPty("/usr/bin/env", ["sh", "-c", "exit 3"])
+      const info = yield* createPty("sh", ["-c", "exit 3"])
 
       expect(yield* waitForEvents(events, info.id, 2)).toEqual(["created", "exited"])
       const exited = yield* pty.get(info.id)
@@ -218,7 +219,7 @@ describe("pty create defaults", () => {
       )
       expect(info.command).toBe(configuredShell)
       expect(info.args).toEqual(["-l"])
-      expect(info.cwd).toBe("/tmp")
+      expect(info.cwd).toBe(os.tmpdir())
       expect(info.title).toBe("configured")
     }),
   )

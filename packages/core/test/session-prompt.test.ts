@@ -19,6 +19,7 @@ import { ProjectTable } from "@opencode/core/project/sql"
 import { AbsolutePath } from "@opencode/core/schema"
 import { Session } from "@opencode/core/session"
 import { SessionMessage } from "@opencode/core/session/message"
+import { Credential } from "@opencode/schema/credential"
 import { SessionProjector } from "@opencode/core/session/projector"
 import { SessionExecution } from "@opencode/core/session/execution"
 import { SessionInbox } from "@opencode/core/session/inbox"
@@ -249,6 +250,30 @@ describe("Session.prompt", () => {
         payload: { text: "Fix the failing tests" },
         delivery: "steer",
       })
+    }),
+  )
+
+  it.effect("keeps the promoted task credential separate from the mutable session default", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* Session.Service
+      const bus = yield* Bus.Service
+      const { db } = yield* Database.Service
+      const first = Credential.ID.make("cred_first")
+      const second = Credential.ID.make("cred_second")
+      yield* session.switchCredential({ sessionID, credentialID: first })
+      const admitted = yield* session.prompt({ sessionID, text: "first", resume: false })
+      expect(admitted.payload.credentialID).toBe(first)
+      yield* SessionInbox.promote(db, bus, sessionID, "steer")
+      yield* session.switchCredential({ sessionID, credentialID: second })
+      expect(yield* session.get(sessionID)).toMatchObject({ credentialID: second, taskCredentialID: first })
+      const message = yield* session.message({ sessionID, messageID: admitted.id })
+      expect(message?.type === "user" ? message.credentialID : undefined).toBe(first)
+      yield* session.compact({ sessionID })
+      yield* SessionInbox.promote(db, bus, sessionID, "input")
+      expect((yield* session.get(sessionID)).taskCredentialID).toBe(first)
+      const next = yield* session.prompt({ sessionID, text: "next", resume: false })
+      expect(next.payload.credentialID).toBe(second)
     }),
   )
 

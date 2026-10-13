@@ -22,6 +22,7 @@ import { SessionMessage } from "@opencode/core/session/message"
 import { SessionRunner } from "@opencode/core/session/runner/index"
 import { SessionInboxTable, SessionTable } from "@opencode/core/session/sql"
 import { SessionStore } from "@opencode/core/session/store"
+import { Credential } from "@opencode/schema/credential"
 import { Cause, Context, Deferred, Effect, Exit, Fiber, Layer, LayerMap, Scope } from "effect"
 import { eq } from "drizzle-orm"
 import { testEffect } from "./lib/effect"
@@ -143,6 +144,61 @@ describe("SessionExecution lifecycle", () => {
       expect(yield* execution.interrupt(sessionID)).toBeTrue()
       yield* execution.awaitIdle(sessionID)
       expect((yield* claims(database))[sessionID]).toBe(false)
+    }),
+  )
+
+  it.effect("restores the persisted task credential across execution restart and synthetic recovery", () =>
+    Effect.gen(function* () {
+      const database = yield* Database.Service
+      const bus = yield* Bus.Service
+      const store = yield* SessionStore.Service
+      const admission = yield* SessionInbox.Service
+      const sessions = yield* Session.Service
+      const sessionID = Session.ID.make("ses_credential_restart")
+      const first = Credential.ID.make("cred_restart_first")
+      const second = Credential.ID.make("cred_restart_second")
+      yield* seedSessions(database, [sessionID])
+      yield* sessions.switchCredential({ sessionID, credentialID: first })
+      yield* admission.admit({
+        id: SessionMessage.ID.create(),
+        sessionID,
+        item: {
+          type: "user",
+          payload: { text: "Persist the original account", credentialID: first },
+          delivery: "steer",
+        },
+      })
+      yield* SessionInbox.promote(database.db, bus, sessionID, "steer")
+      const scope = yield* Scope.make()
+      yield* Effect.addFinalizer(() => Scope.close(scope, Exit.void))
+      const started = yield* Deferred.make<void>()
+      const context = yield* buildExecution(scope, () =>
+        Deferred.succeed(started, undefined).pipe(Effect.andThen(Effect.never)),
+      )
+      yield* Context.get(context, SessionExecution.Service).resume(sessionID).pipe(Effect.forkIn(scope))
+      yield* Deferred.await(started)
+      yield* sessions.switchCredential({ sessionID, credentialID: second })
+      yield* Scope.close(scope, Exit.void)
+      expect((yield* claims(database))[sessionID]).toBe(true)
+      expect(yield* store.get(sessionID)).toMatchObject({ credentialID: second, taskCredentialID: first })
+
+      const restartedScope = yield* Scope.make()
+      yield* Effect.addFinalizer(() => Scope.close(restartedScope, Exit.void))
+      const observed = yield* Deferred.make<Session.Info | undefined>()
+      const restarted = yield* buildExecution(restartedScope, ({ sessionID }) =>
+        SessionInbox.promote(database.db, bus, sessionID, "steer").pipe(
+          Effect.andThen(store.get(sessionID)),
+          Effect.flatMap((session) => Deferred.succeed(observed, session)),
+          Effect.asVoid,
+          Effect.orDie,
+        ),
+      )
+      yield* Context.get(restarted, SessionRestart.Service).resumeSuspendedSessions
+      expect(yield* Deferred.await(observed)).toMatchObject({ credentialID: second, taskCredentialID: first })
+      yield* Context.get(restarted, SessionExecution.Service).awaitIdle(sessionID)
+      expect((yield* claims(database))[sessionID]).toBe(false)
+      expect((yield* store.get(sessionID))?.taskCredentialID).toBeUndefined()
+      expect((yield* store.get(sessionID))?.credentialID).toBe(second)
     }),
   )
 

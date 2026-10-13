@@ -45,11 +45,15 @@ export const layer = Layer.effect(
             "SessionRunnerModel.ModelInitializationError",
             "SessionRunnerModel.UnresolvedProviderVariablesError",
             "SessionRunnerModel.UnsupportedCompactionError",
+            "ModelResolver.CredentialBindingError",
           ],
           (error) => {
             const mapped: Error = input.model
               ? new ModelSelectionError({ message: error.message })
-              : new UnavailableError({ message: error.message, service: error.providerID })
+              : new UnavailableError({
+                  message: error.message,
+                  service: "providerID" in error ? error.providerID : undefined,
+                })
             return Effect.fail(mapped)
           },
         ),

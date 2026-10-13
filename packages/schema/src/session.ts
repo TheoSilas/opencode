@@ -14,6 +14,7 @@ import { Permission } from "./permission.js"
 import { TokenUsage } from "./token-usage.js"
 import { Revert } from "./session-revert.js"
 import { SessionFork } from "./session-fork.js"
+import { Credential } from "./credential.js"
 
 export const ID = SessionID
 export type ID = SessionID
@@ -38,6 +39,9 @@ export const Info = Schema.Struct({
   projectID: Project.ID,
   agent: Agent.ID.pipe(optional),
   model: Model.Ref.pipe(optional),
+  credentialID: Credential.ID.pipe(optional),
+  /** Credential of the currently promoted task, retained for crash recovery. */
+  taskCredentialID: Credential.ID.pipe(optional),
   cost: Money.USD,
   tokens: TokenUsage.Info,
   /** Outcome of the last completed execution, recorded at `time.idle`. Absent until a run reaches a terminal transition. */

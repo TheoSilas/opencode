@@ -578,6 +578,16 @@ export type SessionModelSelected = {
   data: { sessionID: string; model: ModelRef; previous?: ModelRef }
 }
 
+export type SessionCredentialSelected = {
+  id: string
+  created: number
+  metadata?: { [x: string]: any }
+  type: "session.credential.selected"
+  durable: { aggregateID: string; seq: number; version: 1 }
+  location?: LocationRef
+  data: { sessionID: string; credentialID?: string; previous?: string }
+}
+
 export type SessionRenamed = {
   id: string
   created: number
@@ -1720,6 +1730,7 @@ export type SessionMessageUser = {
   files?: Array<PromptFileAttachment>
   agents?: Array<PromptAgentAttachment>
   skills?: Array<PromptSkillAttachment>
+  credentialID?: string
   type: "user"
 }
 
@@ -1729,6 +1740,7 @@ export type SessionInboxUserPayload = {
   agents?: Array<PromptAgentAttachment>
   skills?: Array<PromptSkillAttachment>
   metadata?: { [x: string]: JsonValue }
+  credentialID?: string
 }
 
 export type SessionInboxUserPayload1 = {
@@ -1737,6 +1749,7 @@ export type SessionInboxUserPayload1 = {
   agents?: Array<PromptAgentAttachment>
   skills?: Array<PromptSkillAttachment>
   metadata?: { [x: string]: any }
+  credentialID?: string
 }
 
 export type SessionMessageToolStateCompleted = {
@@ -1945,6 +1958,8 @@ export type SessionInfo = {
   projectID: string
   agent?: string
   model?: ModelRef
+  credentialID?: string
+  taskCredentialID?: string
   cost: MoneyUSD
   tokens: TokenUsageInfo
   outcome?: "succeeded" | "failed" | "interrupted"
@@ -1974,6 +1989,7 @@ export type SessionCreated = {
     title?: string
     agent?: string
     model?: ModelRef
+    credentialID?: string
     metadata?: SessionMetadata
     permissions?: PermissionRuleset
     version: string
@@ -2306,6 +2322,7 @@ export type SessionEventDurable =
   | SessionCreated
   | SessionAgentSelected
   | SessionModelSelected
+  | SessionCredentialSelected
   | SessionMoved
   | SessionRenamed
   | SessionPermissions
@@ -2368,6 +2385,7 @@ export type V2Event =
   | SessionCreated
   | SessionAgentSelected
   | SessionModelSelected
+  | SessionCredentialSelected
   | SessionMoved
   | SessionRenamed
   | SessionPermissions
@@ -2863,6 +2881,7 @@ export type SessionCreateInput = {
       readonly resource: string
       readonly effect: "allow" | "deny" | "ask"
     }> | null
+    readonly credentialID?: string
   }["id"]
   readonly title?: {
     readonly id?: string | null
@@ -2876,6 +2895,7 @@ export type SessionCreateInput = {
       readonly resource: string
       readonly effect: "allow" | "deny" | "ask"
     }> | null
+    readonly credentialID?: string
   }["title"]
   readonly agent?: {
     readonly id?: string | null
@@ -2889,6 +2909,7 @@ export type SessionCreateInput = {
       readonly resource: string
       readonly effect: "allow" | "deny" | "ask"
     }> | null
+    readonly credentialID?: string
   }["agent"]
   readonly model?: {
     readonly id?: string | null
@@ -2902,6 +2923,7 @@ export type SessionCreateInput = {
       readonly resource: string
       readonly effect: "allow" | "deny" | "ask"
     }> | null
+    readonly credentialID?: string
   }["model"]
   readonly location?: {
     readonly id?: string | null
@@ -2915,6 +2937,7 @@ export type SessionCreateInput = {
       readonly resource: string
       readonly effect: "allow" | "deny" | "ask"
     }> | null
+    readonly credentialID?: string
   }["location"]
   readonly metadata?: {
     readonly id?: string | null
@@ -2928,6 +2951,7 @@ export type SessionCreateInput = {
       readonly resource: string
       readonly effect: "allow" | "deny" | "ask"
     }> | null
+    readonly credentialID?: string
   }["metadata"]
   readonly permissions?: {
     readonly id?: string | null
@@ -2941,7 +2965,22 @@ export type SessionCreateInput = {
       readonly resource: string
       readonly effect: "allow" | "deny" | "ask"
     }> | null
+    readonly credentialID?: string
   }["permissions"]
+  readonly credentialID?: {
+    readonly id?: string | null
+    readonly title?: string | null
+    readonly agent?: string | null
+    readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string } | null
+    readonly location?: { readonly directory: string } | null
+    readonly metadata?: { readonly [x: string]: JsonValue } | null
+    readonly permissions?: ReadonlyArray<{
+      readonly action: string
+      readonly resource: string
+      readonly effect: "allow" | "deny" | "ask"
+    }> | null
+    readonly credentialID?: string
+  }["credentialID"]
 }
 
 export type SessionCreateOutput = { data: SessionInfo }["data"]
@@ -2960,6 +2999,8 @@ export type SessionImportInput = {
       readonly projectID: string
       readonly agent?: string
       readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string }
+      readonly credentialID?: string
+      readonly taskCredentialID?: string
       readonly cost: number
       readonly tokens: {
         readonly input: number
@@ -3051,6 +3092,7 @@ export type SessionImportInput = {
             readonly text?: string
             readonly mention?: { readonly start: number; readonly end: number; readonly text: string }
           }>
+          readonly credentialID?: string
           readonly type: "user"
         }
       | {
@@ -3277,6 +3319,8 @@ export type SessionImportInput = {
       readonly projectID: string
       readonly agent?: string
       readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string }
+      readonly credentialID?: string
+      readonly taskCredentialID?: string
       readonly cost: number
       readonly tokens: {
         readonly input: number
@@ -3368,6 +3412,7 @@ export type SessionImportInput = {
             readonly text?: string
             readonly mention?: { readonly start: number; readonly end: number; readonly text: string }
           }>
+          readonly credentialID?: string
           readonly type: "user"
         }
       | {
@@ -3594,6 +3639,8 @@ export type SessionImportInput = {
       readonly projectID: string
       readonly agent?: string
       readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string }
+      readonly credentialID?: string
+      readonly taskCredentialID?: string
       readonly cost: number
       readonly tokens: {
         readonly input: number
@@ -3685,6 +3732,7 @@ export type SessionImportInput = {
             readonly text?: string
             readonly mention?: { readonly start: number; readonly end: number; readonly text: string }
           }>
+          readonly credentialID?: string
           readonly type: "user"
         }
       | {
@@ -3945,17 +3993,32 @@ export type SessionSwitchModelOutput = void
 export type SessionUpdateInput = {
   readonly sessionID: { readonly sessionID: string }["sessionID"]
   readonly title?: {
-    readonly title?: string | undefined
-    readonly permissions?:
-      | ReadonlyArray<{ readonly action: string; readonly resource: string; readonly effect: "allow" | "deny" | "ask" }>
-      | undefined
+    readonly title?: string | null
+    readonly permissions?: ReadonlyArray<{
+      readonly action: string
+      readonly resource: string
+      readonly effect: "allow" | "deny" | "ask"
+    }> | null
+    readonly credentialID?: string
   }["title"]
   readonly permissions?: {
-    readonly title?: string | undefined
-    readonly permissions?:
-      | ReadonlyArray<{ readonly action: string; readonly resource: string; readonly effect: "allow" | "deny" | "ask" }>
-      | undefined
+    readonly title?: string | null
+    readonly permissions?: ReadonlyArray<{
+      readonly action: string
+      readonly resource: string
+      readonly effect: "allow" | "deny" | "ask"
+    }> | null
+    readonly credentialID?: string
   }["permissions"]
+  readonly credentialID?: {
+    readonly title?: string | null
+    readonly permissions?: ReadonlyArray<{
+      readonly action: string
+      readonly resource: string
+      readonly effect: "allow" | "deny" | "ask"
+    }> | null
+    readonly credentialID?: string
+  }["credentialID"]
 }
 
 export type SessionUpdateOutput = void
@@ -3987,6 +4050,7 @@ export type SessionPromptInput = {
       readonly id: string
       readonly mention?: { readonly start: number; readonly end: number; readonly text: string }
     }>
+    readonly credentialID?: string
     readonly metadata?: { readonly [x: string]: JsonValue }
     readonly delivery?: ("steer" | "queue") | null
     readonly resume?: boolean | null
@@ -4008,6 +4072,7 @@ export type SessionPromptInput = {
       readonly id: string
       readonly mention?: { readonly start: number; readonly end: number; readonly text: string }
     }>
+    readonly credentialID?: string
     readonly metadata?: { readonly [x: string]: JsonValue }
     readonly delivery?: ("steer" | "queue") | null
     readonly resume?: boolean | null
@@ -4029,6 +4094,7 @@ export type SessionPromptInput = {
       readonly id: string
       readonly mention?: { readonly start: number; readonly end: number; readonly text: string }
     }>
+    readonly credentialID?: string
     readonly metadata?: { readonly [x: string]: JsonValue }
     readonly delivery?: ("steer" | "queue") | null
     readonly resume?: boolean | null
@@ -4050,6 +4116,7 @@ export type SessionPromptInput = {
       readonly id: string
       readonly mention?: { readonly start: number; readonly end: number; readonly text: string }
     }>
+    readonly credentialID?: string
     readonly metadata?: { readonly [x: string]: JsonValue }
     readonly delivery?: ("steer" | "queue") | null
     readonly resume?: boolean | null
@@ -4071,10 +4138,33 @@ export type SessionPromptInput = {
       readonly id: string
       readonly mention?: { readonly start: number; readonly end: number; readonly text: string }
     }>
+    readonly credentialID?: string
     readonly metadata?: { readonly [x: string]: JsonValue }
     readonly delivery?: ("steer" | "queue") | null
     readonly resume?: boolean | null
   }["skills"]
+  readonly credentialID?: {
+    readonly id?: string | null
+    readonly text: string
+    readonly files?: ReadonlyArray<{
+      readonly uri: string
+      readonly name?: string
+      readonly description?: string
+      readonly mention?: { readonly start: number; readonly end: number; readonly text: string }
+    }>
+    readonly agents?: ReadonlyArray<{
+      readonly name: string
+      readonly mention?: { readonly start: number; readonly end: number; readonly text: string }
+    }>
+    readonly skills?: ReadonlyArray<{
+      readonly id: string
+      readonly mention?: { readonly start: number; readonly end: number; readonly text: string }
+    }>
+    readonly credentialID?: string
+    readonly metadata?: { readonly [x: string]: JsonValue }
+    readonly delivery?: ("steer" | "queue") | null
+    readonly resume?: boolean | null
+  }["credentialID"]
   readonly metadata?: {
     readonly id?: string | null
     readonly text: string
@@ -4092,6 +4182,7 @@ export type SessionPromptInput = {
       readonly id: string
       readonly mention?: { readonly start: number; readonly end: number; readonly text: string }
     }>
+    readonly credentialID?: string
     readonly metadata?: { readonly [x: string]: JsonValue }
     readonly delivery?: ("steer" | "queue") | null
     readonly resume?: boolean | null
@@ -4113,6 +4204,7 @@ export type SessionPromptInput = {
       readonly id: string
       readonly mention?: { readonly start: number; readonly end: number; readonly text: string }
     }>
+    readonly credentialID?: string
     readonly metadata?: { readonly [x: string]: JsonValue }
     readonly delivery?: ("steer" | "queue") | null
     readonly resume?: boolean | null
@@ -4134,6 +4226,7 @@ export type SessionPromptInput = {
       readonly id: string
       readonly mention?: { readonly start: number; readonly end: number; readonly text: string }
     }>
+    readonly credentialID?: string
     readonly metadata?: { readonly [x: string]: JsonValue }
     readonly delivery?: ("steer" | "queue") | null
     readonly resume?: boolean | null
@@ -4161,6 +4254,7 @@ export type SessionCommandInput = {
       readonly id: string
       readonly mention?: { readonly start: number; readonly end: number; readonly text: string }
     }>
+    readonly credentialID?: string
     readonly delivery?: ("steer" | "queue") | null
   }["name"]
   readonly text: {
@@ -4180,6 +4274,7 @@ export type SessionCommandInput = {
       readonly id: string
       readonly mention?: { readonly start: number; readonly end: number; readonly text: string }
     }>
+    readonly credentialID?: string
     readonly delivery?: ("steer" | "queue") | null
   }["text"]
   readonly files?: {
@@ -4199,6 +4294,7 @@ export type SessionCommandInput = {
       readonly id: string
       readonly mention?: { readonly start: number; readonly end: number; readonly text: string }
     }>
+    readonly credentialID?: string
     readonly delivery?: ("steer" | "queue") | null
   }["files"]
   readonly agents?: {
@@ -4218,6 +4314,7 @@ export type SessionCommandInput = {
       readonly id: string
       readonly mention?: { readonly start: number; readonly end: number; readonly text: string }
     }>
+    readonly credentialID?: string
     readonly delivery?: ("steer" | "queue") | null
   }["agents"]
   readonly skills?: {
@@ -4237,8 +4334,29 @@ export type SessionCommandInput = {
       readonly id: string
       readonly mention?: { readonly start: number; readonly end: number; readonly text: string }
     }>
+    readonly credentialID?: string
     readonly delivery?: ("steer" | "queue") | null
   }["skills"]
+  readonly credentialID?: {
+    readonly name: string
+    readonly text: string
+    readonly files?: ReadonlyArray<{
+      readonly uri: string
+      readonly name?: string
+      readonly description?: string
+      readonly mention?: { readonly start: number; readonly end: number; readonly text: string }
+    }>
+    readonly agents?: ReadonlyArray<{
+      readonly name: string
+      readonly mention?: { readonly start: number; readonly end: number; readonly text: string }
+    }>
+    readonly skills?: ReadonlyArray<{
+      readonly id: string
+      readonly mention?: { readonly start: number; readonly end: number; readonly text: string }
+    }>
+    readonly credentialID?: string
+    readonly delivery?: ("steer" | "queue") | null
+  }["credentialID"]
   readonly delivery?: {
     readonly name: string
     readonly text: string
@@ -4256,6 +4374,7 @@ export type SessionCommandInput = {
       readonly id: string
       readonly mention?: { readonly start: number; readonly end: number; readonly text: string }
     }>
+    readonly credentialID?: string
     readonly delivery?: ("steer" | "queue") | null
   }["delivery"]
 }

@@ -4,6 +4,7 @@ import { Schema } from "effect"
 import { AgentAttachment, PromptMention } from "./prompt.js"
 import { optional, statics } from "./schema.js"
 import { Skill } from "./skill.js"
+import { Credential } from "./credential.js"
 
 export interface FileAttachment extends Schema.Schema.Type<typeof FileAttachment> {}
 export const FileAttachment = Schema.Struct({
@@ -31,4 +32,5 @@ export const Prompt = Schema.Struct({
   files: Schema.Array(FileAttachment).pipe(optional),
   agents: Schema.Array(AgentAttachment).pipe(optional),
   skills: Schema.Array(SkillAttachment).pipe(optional),
+  credentialID: Credential.ID.pipe(optional),
 }).annotate({ identifier: "PromptInput" })

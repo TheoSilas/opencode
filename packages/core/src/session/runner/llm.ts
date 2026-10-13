@@ -175,7 +175,11 @@ const layer = Layer.effect(
                       onlyIfMissing: true,
                     })
                   if (promoted > 0) step = 1
-                  return { _tag: "Ready" as const, context: yield* context.load(selected) }
+                  // Promotion durably fixes the task credential. The preflight selection
+                  // predates that projection, so reload the session before resolving the model.
+                  const session = yield* store.get(sessionID)
+                  if (!session) return yield* Effect.die(new Error(`Session not found: ${sessionID}`))
+                  return { _tag: "Ready" as const, context: yield* context.load({ ...selected, session }) }
                 }),
               )
               if (ready) return ready

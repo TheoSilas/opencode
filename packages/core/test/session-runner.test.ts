@@ -87,6 +87,7 @@ import { Expected } from "./lib/session-message"
 import { permissionLayer } from "./lib/permission"
 import { agentHost, modelHost, host, noProviders } from "./plugin/host"
 import { CodeModeInstructions } from "@opencode/core/codemode/instructions"
+import { Credential } from "@opencode/schema/credential"
 
 const emptyCodeMode = `\n\n${CodeModeInstructions.render({ total: 0, shown: 0, namespaces: [] })}`
 type ToolBarrier = {
@@ -207,6 +208,7 @@ const makeRunnerState = (compaction?: SessionRunnerModel.Resolved["compaction"])
     currentModel: model,
     compaction,
     modelResolveHook: Effect.void,
+    resolvedCredentials: new Array<string | undefined>(),
     systemBaseline: "Initial context",
     systemRemoved: false,
     systemUnavailable: false,
@@ -317,7 +319,8 @@ const layer = Layer.unwrap(
     const echoNode = makeLocationNode({ name: "test/session-runner-tools", layer: echo, deps: [Tool.node] })
     const models = Layer.mock(SessionRunnerModel.Service)({
       resolve: (session) =>
-        state.modelResolveHook.pipe(
+        Effect.sync(() => { state.resolvedCredentials.push(session.taskCredentialID ?? session.credentialID) }).pipe(
+          Effect.andThen(state.modelResolveHook),
           Effect.map(() => {
             const selected = session.model?.id === "replacement" ? replacementModel : state.currentModel
             return SessionRunnerModel.resolved(selected, {
@@ -1182,6 +1185,64 @@ describe("SessionRunnerLLM", () => {
 
     expect(s.requests).toHaveLength(1)
     expect(yield* s.messages).toMatchObject([{ id: message.id, type: "user", text: "Run automatically" }])
+  })
+
+  scenario("keeps the promoted credential through an active tool continuation and uses a new default next turn", function* (s) {
+    const first = Credential.ID.make("cred_runner_first")
+    const second = Credential.ID.make("cred_runner_second")
+    yield* s.session.switchCredential({ sessionID, credentialID: first })
+    yield* s.llm.push(TestLLM.tool("call-bound", "echo", { text: "first" }), TestLLM.text("Done", "bound-done"))
+    yield* s.admit("Run with first credential")
+    const run = yield* s.resumePaused
+    expect((yield* s.session.get(sessionID)).taskCredentialID).toBe(first)
+    yield* s.session.switchCredential({ sessionID, credentialID: second })
+    yield* run.finish
+    expect(s.resolvedCredentials).toEqual([first, first])
+    yield* s.runPrompt("Next task")
+    expect(s.resolvedCredentials.at(-1)).toBe(second)
+  })
+
+  scenario("keeps the promoted credential through retry after a session account change", function* (s) {
+    const first = Credential.ID.make("cred_retry_first")
+    const second = Credential.ID.make("cred_retry_second")
+    yield* s.session.switchCredential({ sessionID, credentialID: first })
+    yield* s.admit("Retry with the original account")
+    yield* s.llm.push(Stream.fail(providerUnavailable()), TestLLM.text("Recovered", "bound-retry"))
+    const scheduled = yield* subscribeRetries(s)
+    const run = yield* s.resume.pipe(Effect.forkChild)
+    yield* Queue.take(scheduled)
+    yield* s.session.switchCredential({ sessionID, credentialID: second })
+    expect((yield* s.session.get(sessionID)).taskCredentialID).toBe(first)
+    yield* TestClock.adjust("2400 millis")
+    yield* Fiber.join(run)
+    expect(s.requests).toHaveLength(2)
+    expect(s.resolvedCredentials.every((id) => id === first)).toBe(true)
+    yield* s.runPrompt("Next task")
+    expect(s.resolvedCredentials.at(-1)).toBe(second)
+  })
+
+  scenario("keeps the promoted credential through compaction and a tool continuation", function* (s) {
+    const first = Credential.ID.make("cred_compaction_first")
+    const second = Credential.ID.make("cred_compaction_second")
+    s.currentModel = recoveryModel
+    yield* s.session.switchCredential({ sessionID, credentialID: first })
+    yield* s.llm.push(
+      TestLLM.tool("call-bound-compaction", "echo", { text: "active" }),
+      [LLMEvent.textDelta({ id: "summary", text: "## Objective\n- durable summary" })],
+      TestLLM.text("Continued", "bound-compaction-done"),
+    )
+    yield* s.admit("Compact with the original account")
+    const active = yield* s.resumePaused
+    yield* s.session.switchCredential({ sessionID, credentialID: second })
+    const compaction = yield* s.session.compact({ sessionID })
+    yield* active.finish
+    expect(s.requests).toHaveLength(3)
+    expect(s.resolvedCredentials.every((id) => id === first)).toBe(true)
+    expect((yield* s.messages).find((message) => message.id === compaction.id)).toMatchObject({
+      type: "compaction", status: "completed", summary: "## Objective\n- durable summary",
+    })
+    yield* s.runPrompt("Next task")
+    expect(s.resolvedCredentials.at(-1)).toBe(second)
   })
 
   scenario("runs a follow-up when synthetic input arrives during an active continuation", function* (s) {

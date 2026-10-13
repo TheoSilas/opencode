@@ -4,6 +4,7 @@ import { AbsolutePath } from "@opencode/core/schema"
 import { Session } from "@opencode/core/session"
 import { InvalidRequestError } from "@opencode/protocol/errors"
 import { Effect, Layer, Schema } from "effect"
+import fs from "node:fs/promises"
 import { HttpServerRequest } from "effect/unstable/http"
 import { HttpApiMiddleware } from "effect/unstable/httpapi"
 import { missingSession } from "./handlers/session-error"
@@ -12,6 +13,7 @@ export type LocationServices = Layer.Success<ReturnType<(typeof LocationServiceM
 
 export class LocationMiddleware extends HttpApiMiddleware.Service<LocationMiddleware, { provides: LocationServices }>()(
   "@opencode/HttpApiLocation",
+  { error: InvalidRequestError },
 ) {}
 
 export function response<A, E, R>(data: Effect.Effect<A, E, R>) {
@@ -61,7 +63,21 @@ export const layer = Layer.effect(
     return LocationMiddleware.of((effect) =>
       Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest
-        return yield* effect.pipe(Effect.provide(locations.get(requestRef(request))))
+        const ref = requestRef(request)
+        const directory = yield* Effect.tryPromise({
+          try: () => fs.stat(ref.directory),
+          catch: () =>
+            new InvalidRequestError({
+              message: `Working directory is unavailable: ${ref.directory}`,
+              field: "location[directory]",
+            }),
+        })
+        if (!directory.isDirectory())
+          return yield* new InvalidRequestError({
+            message: `Not a working directory: ${ref.directory}`,
+            field: "location[directory]",
+          })
+        return yield* effect.pipe(Effect.provide(locations.get(ref)))
       }),
     )
   }),

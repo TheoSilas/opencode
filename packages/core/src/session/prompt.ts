@@ -2,6 +2,7 @@ export * as SessionPrompt from "./prompt.js"
 
 import { Base64, FileAttachment, Prompt } from "@opencode/schema/prompt"
 import { PromptInput } from "@opencode/schema/prompt-input"
+import type { Credential } from "@opencode/schema/credential"
 import { SessionInbox } from "@opencode/schema/session-inbox"
 import type { Session } from "@opencode/schema/session"
 import type { SessionMessage } from "@opencode/schema/session-message"
@@ -24,6 +25,7 @@ export type Input = {
   skills?: PromptInput.Prompt["skills"]
   metadata?: Record<string, unknown>
   delivery?: SessionInbox.Delivery
+  credentialID?: Credential.ID
 }
 
 export const prepare = Effect.fn("SessionPrompt.prepare")(function* (request: {
@@ -84,6 +86,7 @@ export const prepare = Effect.fn("SessionPrompt.prepare")(function* (request: {
           skills: selected?.length ? selected : undefined,
         }),
         metadata: event.metadata,
+        credentialID: request.input.credentialID ?? request.session.credentialID,
       }),
       delivery: SessionInbox.Delivery.make(event.delivery),
     } satisfies SessionInbox.Item

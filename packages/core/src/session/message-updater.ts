@@ -115,6 +115,7 @@ export function update(adapter: Adapter, event: SessionEvent.DurableEvent) {
             }),
           )
         }),
+      "session.credential.selected": () => Effect.void,
       "session.moved": (event) =>
         Effect.gen(function* () {
           yield* adapter.appendMessage(

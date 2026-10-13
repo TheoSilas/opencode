@@ -10,6 +10,7 @@ import { SessionSchema } from "./schema.js"
 import type { SessionTable } from "./sql.js"
 import { PersistedRevert } from "@opencode/schema/session-revert"
 import { Money } from "@opencode/schema/money"
+import { Credential } from "@opencode/schema/credential"
 
 const decodeRevert = Schema.decodeUnknownSync(PersistedRevert)
 
@@ -34,6 +35,8 @@ export function fromRow(row: typeof SessionTable.$inferSelect): SessionSchema.In
           variant: Model.VariantID.make(row.model.variant ?? "default"),
         }
       : undefined,
+    credentialID: row.credential_id ? Credential.ID.make(row.credential_id) : undefined,
+    taskCredentialID: row.task_credential_id ? Credential.ID.make(row.task_credential_id) : undefined,
     cost: Money.USD.make(row.cost),
     tokens: {
       input: row.tokens_input,

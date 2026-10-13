@@ -398,7 +398,9 @@ describe("ModelResolver", () => {
       },
       model: () => Effect.die("unused"),
     })
-    const layer = ModelResolver.layer.pipe(Layer.provide(Layer.mergeAll(providers, models, integrations, npm, aisdk)))
+    const layer = ModelResolver.layer.pipe(Layer.provide(Layer.mergeAll(providers, models, integrations, npm, aisdk, Layer.mock(Credential.Service, {
+      get: () => Effect.undefined,
+    }))))
 
     return withConfigEnv({}, () =>
       Effect.gen(function* () {

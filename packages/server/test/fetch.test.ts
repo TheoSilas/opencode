@@ -457,6 +457,23 @@ it.live("routes pending requests through the Session's instance", () =>
   }),
 )
 
+it.live("rejects pending lists for an unavailable working directory without a server error", () =>
+  Effect.gen(function* () {
+    const config = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("opencode-pending-missing-")))
+    const handler = yield* ServerFetch.make({ ...options, config: { directory: config.path, project: false } })
+    for (const resource of ["permission/request", "form"]) {
+      const response = yield* Effect.promise(() =>
+        handler(
+          new Request(
+            `http://opencode.local/api/${resource}?location%5Bdirectory%5D=${encodeURIComponent(path.join(config.path, "missing"))}`,
+          ),
+        ),
+      )
+      expect(response.status).toBe(400)
+    }
+  }),
+)
+
 // Pins the eager-boot guarantee: the application layer is built before the handler returns, so
 // an aborted first request cannot interrupt layer construction and wedge every later request
 // (the Effect-TS/effect#6319 failure class that lazy first-request builds are prone to).

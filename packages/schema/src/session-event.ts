@@ -26,6 +26,7 @@ import { SessionInbox } from "./session-inbox.js"
 import { Project } from "./project.js"
 import { SessionFork } from "./session-fork.js"
 import { Permission } from "./permission.js"
+import { Credential } from "./credential.js"
 
 export { FileAttachment }
 
@@ -61,6 +62,7 @@ export const Created = Event.durable({
     title: Schema.String.pipe(optional),
     agent: Agent.ID.pipe(optional),
     model: Model.Ref.pipe(optional),
+    credentialID: Credential.ID.pipe(optional),
     /** Host-supplied annotations resolved at creation, including any inherited from a parent. */
     metadata: SessionMetadata.pipe(optional),
     permissions: Permission.Ruleset.pipe(optional),
@@ -90,6 +92,13 @@ export const ModelSelected = Event.durable({
   },
 })
 export type ModelSelected = typeof ModelSelected.Type
+
+export const CredentialSelected = Event.durable({
+  type: "session.credential.selected",
+  ...options,
+  schema: { ...Base, credentialID: Credential.ID.pipe(optional), previous: Credential.ID.pipe(optional) },
+})
+export type CredentialSelected = typeof CredentialSelected.Type
 
 export const Moved = Event.durable({
   type: "session.moved",
@@ -646,6 +655,7 @@ export const Definitions = Event.inventory(
   Created,
   AgentSelected,
   ModelSelected,
+  CredentialSelected,
   Moved,
   Renamed,
   Permissions,
