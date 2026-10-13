@@ -86,6 +86,10 @@ const bindingIntegration = Layer.mock(Integration.Service, {
         ? { type: "key" as const, key: "mock-only" }
         : undefined
     }),
+    key: () => Effect.die("unused"),
+    activate: () => Effect.die("unused"),
+    update: () => Effect.die("unused"),
+    remove: () => Effect.die("unused"),
   },
 })
 const bindingIt = testEffect(ModelResolver.layer.pipe(
