@@ -91,6 +91,17 @@ const bindingIntegration = Layer.mock(Integration.Service, {
     update: () => Effect.die("unused"),
     remove: () => Effect.die("unused"),
   },
+  oauth: {
+    connect: () => Effect.die("unused"),
+    status: () => Effect.die("unused"),
+    complete: () => Effect.die("unused"),
+    cancel: () => Effect.die("unused"),
+  },
+  command: {
+    connect: () => Effect.die("unused"),
+    status: () => Effect.die("unused"),
+    cancel: () => Effect.die("unused"),
+  },
 })
 const bindingIt = testEffect(ModelResolver.layer.pipe(
   Layer.provide(Layer.mergeAll(providers, models, bindingIntegration, bindingCredential, npm, aisdk)),
