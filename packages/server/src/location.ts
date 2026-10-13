@@ -4,6 +4,7 @@ import { AbsolutePath } from "@opencode/core/schema"
 import { Session } from "@opencode/core/session"
 import { InvalidRequestError } from "@opencode/protocol/errors"
 import { Effect, Layer, Schema } from "effect"
+import { statSync } from "node:fs"
 import fs from "node:fs/promises"
 import { HttpServerRequest } from "effect/unstable/http"
 import { HttpApiMiddleware } from "effect/unstable/httpapi"
@@ -64,14 +65,16 @@ export const layer = Layer.effect(
       Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest
         const ref = requestRef(request)
-        const directory = yield* Effect.tryPromise({
-          try: () => fs.stat(ref.directory),
-          catch: () =>
-            new InvalidRequestError({
-              message: `Working directory is unavailable: ${ref.directory}`,
-              field: "location[directory]",
-            }),
+        const invalid = () => new InvalidRequestError({
+          message: `Working directory is unavailable: ${ref.directory}`,
+          field: "location[directory]",
         })
+        // Bun's Node HTTP upgrade is valid only in the request's synchronous
+        // window. Awaiting fs.stat before the PTY handler makes server.upgrade()
+        // reject the socket, including on the Android compiled runtime.
+        const directory = request.headers.upgrade?.toLowerCase() === "websocket"
+          ? yield* Effect.try({ try: () => statSync(ref.directory), catch: invalid })
+          : yield* Effect.tryPromise({ try: () => fs.stat(ref.directory), catch: invalid })
         if (!directory.isDirectory())
           return yield* new InvalidRequestError({
             message: `Not a working directory: ${ref.directory}`,
