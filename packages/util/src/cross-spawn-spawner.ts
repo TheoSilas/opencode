@@ -220,6 +220,9 @@ const makeCrossSpawnSpawner = Effect.gen(function* () {
     Effect.suspend(() => {
       let sink: Sink.Sink<void, unknown, never, PlatformError.PlatformError> = Sink.drain
       if (Predicate.isNotNull(proc.stdin)) {
+        // A child can exit before stdin finishes closing. NodeSink removes its
+        // listener on completion, so retain one for a late write error.
+        proc.stdin.once("error", () => {})
         sink = NodeSink.fromWritable({
           evaluate: () => proc.stdin!,
           onError: (err) => toPlatformError("fromWritable(stdin)", toError(err), command),
