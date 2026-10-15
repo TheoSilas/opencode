@@ -20,7 +20,7 @@ jobs:
       matrix:
         include:
           - label: repaired
-            ref: 75a629bc2e2dc8eecac3d6889af82ce13c534a17
+            ref: d2eddea70ba1bd4902167999d019922a0a8b4565
     runs-on: ubuntu-latest
     env:
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.playwright-browsers
@@ -42,57 +42,9 @@ jobs:
           bun --version
           node --version
           uname -a
-      - name: Install Chromium
-        working-directory: packages/app
-        run: bunx playwright install --with-deps chromium
       - name: Check App and E2E types
         id: types
         working-directory: packages/app
         run: |
           bun run typecheck
           bun run typecheck:e2e
-      - name: Original failed and flaky cases
-        working-directory: packages/app
-        run: >-
-          bun run test:e2e:built
-          e2e/smoke/session-timeline.spec.ts
-          --grep 'renders seeded timeline in order while paging through history'
-          --repeat-each=5 --retries=0 --trace=retain-on-failure
-        timeout-minutes: 20
-      - name: Upload focused traces
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: failure-probe-${{ matrix.label }}-linux
-          path: |
-            packages/app/e2e/test-results
-            packages/app/e2e/playwright-report
-          retention-days: 7
-  git:
-    name: Git early-exit diagnostic (${{ matrix.ref }})
-    strategy:
-      fail-fast: false
-      matrix:
-        ref: [75a629bc2e2dc8eecac3d6889af82ce13c534a17]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          ref: ${{ matrix.ref }}
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: '24'
-      - uses: ./.github/actions/setup-bun
-      - name: Configure fixture Git identity
-        run: |
-          git config --global user.email 'bot@opencode.ai'
-          git config --global user.name opencode
-      - name: Repeat exact early-exit failure
-        working-directory: packages/core
-        env:
-          GITHUB_ACTIONS: 'false'
-        run: |
-          git rev-parse HEAD
-          for attempt in 1 2 3 4 5; do
-            bun run script/test.ts test/git.test.ts --test-name-pattern 'refresh handles check-ignore exit 128' || exit "$?"
-          done
