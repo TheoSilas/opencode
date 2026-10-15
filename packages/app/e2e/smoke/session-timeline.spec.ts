@@ -622,48 +622,10 @@ async function pointAtTimeline(page: Page) {
 }
 
 async function scrollTimelineUp(page: Page, before: SmokeState) {
-  return page.evaluate(
-    (prev) =>
-      new Promise<boolean>((resolve) => {
-        const scroller = [...document.querySelectorAll<HTMLElement>(".scroll-view__viewport")].find((el) =>
-          el.querySelector("[data-timeline-row], [data-session-title]"),
-        )
-        if (!scroller) {
-          resolve(false)
-          return
-        }
-
-        scroller.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: -1, deltaMode: 0 }))
-        scroller.scrollTop = Math.max(0, scroller.scrollTop - Math.max(80, Math.round(scroller.clientHeight * 0.45)))
-
-        const read = () => (window as SmokeWindow).__timelineSmokeState?.().signature ?? ""
-        let frames = 0
-        let stableFrames = 0
-        let last = ""
-        let changed = false
-        const check = () => {
-          const current = read()
-          if (current !== prev) changed = true
-          if (current === last) stableFrames++
-          else {
-            stableFrames = 0
-            last = current
-          }
-          if (changed && stableFrames >= 2) {
-            resolve(true)
-            return
-          }
-          frames++
-          if (frames >= 30) {
-            resolve(changed)
-            return
-          }
-          requestAnimationFrame(check)
-        }
-        requestAnimationFrame(check)
-      }),
-    before.signature,
-  )
+  if (before.scrollTop <= 1) return false
+  await page.mouse.wheel(0, -Math.max(80, Math.round(before.clientHeight * 0.45)))
+  await expect.poll(async () => (await timelineState(page)).signature).not.toBe(before.signature)
+  return true
 }
 
 function expectOrderedIDs(expected: string[], actual: string[], label: string) {
