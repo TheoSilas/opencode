@@ -136,7 +136,9 @@ export async function installTimelineStreamProbe(
           }
           if (state.scroll.lastCallFrame === state.scroll.frame) state.scroll.sameFrameCalls += 1
           state.scroll.lastCallFrame = state.scroll.frame
-          Reflect.apply(scrollTo, this, typeof first === "number" ? [first, second] : [first])
+          const scroll = scrollTo.bind(this)
+          if (typeof first === "number") return scroll(first, second!)
+          return scroll(first)
         }
         Element.prototype.scrollTo = measuredScrollTo
         Object.defineProperty(Element.prototype, "scrollTop", {

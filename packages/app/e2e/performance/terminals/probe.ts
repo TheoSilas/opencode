@@ -47,11 +47,18 @@ Terminal.prototype.open = function (element) {
   }
   if (new URL(location.href).searchParams.has("terminalDrawProbe")) {
     const context = element.querySelector("canvas")!.getContext("2d")!
-    const draw = context.drawImage
-    context.drawImage = function (...args: unknown[]) {
+    const draw = context.drawImage.bind(context)
+    context.drawImage = function (
+      ...args:
+        | [CanvasImageSource, number, number]
+        | [CanvasImageSource, number, number, number, number]
+        | [CanvasImageSource, number, number, number, number, number, number, number, number]
+    ) {
       probe.draws++
       if (hidden) probe.hiddenDraws++
-      Reflect.apply(draw, this, args)
+      if (args.length === 3) return draw(...args)
+      if (args.length === 5) return draw(...args)
+      return draw(...args)
     }
   }
 }
