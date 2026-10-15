@@ -20,7 +20,7 @@ jobs:
       matrix:
         include:
           - label: repaired
-            ref: f4b4696763c16b9d409ad1223bffe2be0c526622
+            ref: 75a629bc2e2dc8eecac3d6889af82ce13c534a17
     runs-on: ubuntu-latest
     env:
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.playwright-browsers
@@ -73,7 +73,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ref: [a53d48db1c15e9d93e37a6574c655cd3c6443dd4, f4b4696763c16b9d409ad1223bffe2be0c526622]
+        ref: [75a629bc2e2dc8eecac3d6889af82ce13c534a17]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
