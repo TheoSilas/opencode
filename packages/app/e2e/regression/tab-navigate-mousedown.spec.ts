@@ -148,6 +148,7 @@ test("mobile drawer exposes close controls and navigates between tabs", async ({
     await page.setViewportSize({ width: 450, height: 720 })
     await expect(tabA).toBeVisible()
     await page.setViewportSize({ width: 1280, height: 720 })
+    await expect(page.getByRole("dialog", { name: "Tabs", exact: true })).toBeHidden()
     await expect(tabA.locator("[data-titlebar-tab]")).toHaveAttribute("data-title-overflow", "false")
     await page.setViewportSize({ width: 450, height: 720 })
     await page.getByRole("button", { name: "Tabs", exact: true }).click()

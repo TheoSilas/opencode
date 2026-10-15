@@ -277,7 +277,15 @@ export function PromptWorkspaceSelector(props: {
           class={summary() ? "min-w-0 w-full" : "ms-1 min-w-0 max-w-[220px]"}
           contentClass="max-w-[calc(100vw-32px)] break-all"
         >
-          <Menu placement={placement()} gutter={4} modal={summary() ? false : undefined} onOpenChange={onOpenChange}>
+          <Menu
+            placement={placement()}
+            gutter={4}
+            modal={summary() ? false : undefined}
+            onOpenChange={(open) => {
+              // Cancelling branch selection should restore the trigger, not the composer.
+              if (open || pending) onOpenChange(open)
+            }}
+          >
             <Menu.Trigger
               class={
                 summary()
