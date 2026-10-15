@@ -966,6 +966,9 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "credentialID": {
+                    "type": "string"
                   }
                 },
                 "additionalProperties": false
@@ -1565,6 +1568,23 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "credentialID": {
+                    "anyOf": [
+                      {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "additionalProperties": false
@@ -2061,6 +2081,9 @@
                       "$ref": "#/components/schemas/PromptInput.SkillAttachment"
                     }
                   },
+                  "credentialID": {
+                    "type": "string"
+                  },
                   "metadata": {
                     "type": "object"
                   },
@@ -2196,6 +2219,9 @@
                     "items": {
                       "$ref": "#/components/schemas/PromptInput.SkillAttachment"
                     }
+                  },
+                  "credentialID": {
+                    "type": "string"
                   },
                   "delivery": {
                     "anyOf": [
@@ -17116,6 +17142,9 @@
           },
           "metadata": {
             "type": "object"
+          },
+          "credentialID": {
+            "type": "string"
           }
         },
         "required": ["text"],
@@ -17154,6 +17183,12 @@
           },
           "model": {
             "$ref": "#/components/schemas/Model.Ref"
+          },
+          "credentialID": {
+            "type": "string"
+          },
+          "taskCredentialID": {
+            "type": "string"
           },
           "cost": {
             "$ref": "#/components/schemas/Money.USD"
@@ -18110,6 +18145,9 @@
             "items": {
               "$ref": "#/components/schemas/Prompt.SkillAttachment"
             }
+          },
+          "credentialID": {
+            "type": "string"
           },
           "type": {
             "type": "string",

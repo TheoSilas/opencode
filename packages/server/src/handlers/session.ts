@@ -273,7 +273,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                .pipe(Effect.catchTag("Session.NotFoundError", missingSession))
           if (ctx.payload.credentialID !== undefined)
             yield* session
-              .switchCredential({ sessionID: ctx.params.sessionID, credentialID: ctx.payload.credentialID })
+              .switchCredential({ sessionID: ctx.params.sessionID, credentialID: ctx.payload.credentialID ?? undefined })
               .pipe(Effect.catchTag("Session.NotFoundError", missingSession))
           return HttpApiSchema.NoContent.make()
         }),

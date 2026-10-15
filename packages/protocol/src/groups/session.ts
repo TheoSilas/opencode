@@ -113,6 +113,13 @@ export const SessionsCursor = Schema.String.pipe(
 )
 export type SessionsCursor = typeof SessionsCursor.Type
 
+export const SessionUpdatePayload = Schema.Struct({
+  title: Schema.String.pipe(Schema.optional),
+  permissions: Permission.Ruleset.pipe(Schema.optional),
+  // Explicit null clears the persisted binding; omission leaves it unchanged.
+  credentialID: Schema.NullOr(Session.Info.fields.credentialID).pipe(Schema.optional),
+})
+
 const SessionActive = Schema.Struct({
   type: Schema.Literal("running"),
 }).annotate({ identifier: "SessionActive" })
@@ -358,11 +365,7 @@ export const makeSessionGroup = <
     .add(
       HttpApiEndpoint.patch("session.update", "/api/session/:sessionID", {
         params: { sessionID: Session.ID },
-        payload: Schema.Struct({
-          title: Schema.String.pipe(Schema.optional),
-          permissions: Permission.Ruleset.pipe(Schema.optional),
-          credentialID: Session.Info.fields.credentialID,
-        }),
+        payload: SessionUpdatePayload,
         success: HttpApiSchema.NoContent,
         error: SessionNotFoundError,
       })

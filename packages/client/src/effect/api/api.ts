@@ -243,7 +243,7 @@ export type SessionUpdateInput = {
   readonly sessionID: Session.ID
   readonly title?: string | undefined
   readonly permissions?: Permission.Ruleset | undefined
-  readonly credentialID?: Credential.ID | undefined
+  readonly credentialID?: Credential.ID | undefined | null | undefined
 }
 export type SessionUpdateOutput = void
 export type SessionUpdateOperation<E = never> = (input: SessionUpdateInput) => Effect.Effect<SessionUpdateOutput, E>

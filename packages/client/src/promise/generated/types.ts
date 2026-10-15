@@ -3999,7 +3999,7 @@ export type SessionUpdateInput = {
       readonly resource: string
       readonly effect: "allow" | "deny" | "ask"
     }> | null
-    readonly credentialID?: string
+    readonly credentialID?: string | null | null
   }["title"]
   readonly permissions?: {
     readonly title?: string | null
@@ -4008,7 +4008,7 @@ export type SessionUpdateInput = {
       readonly resource: string
       readonly effect: "allow" | "deny" | "ask"
     }> | null
-    readonly credentialID?: string
+    readonly credentialID?: string | null | null
   }["permissions"]
   readonly credentialID?: {
     readonly title?: string | null
@@ -4017,7 +4017,7 @@ export type SessionUpdateInput = {
       readonly resource: string
       readonly effect: "allow" | "deny" | "ask"
     }> | null
-    readonly credentialID?: string
+    readonly credentialID?: string | null | null
   }["credentialID"]
 }
 
