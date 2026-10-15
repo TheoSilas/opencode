@@ -20,7 +20,7 @@ jobs:
       matrix:
         include:
           - label: repaired
-            ref: 6355a3bc9522ff426a68d7c7ad30f863147bad64
+            ref: f46c9486805bb46992473ac87b87778313bd2aeb
     runs-on: ubuntu-latest
     env:
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.playwright-browsers
@@ -46,6 +46,7 @@ jobs:
         working-directory: packages/app
         run: bunx playwright install --with-deps chromium
       - name: Check App and E2E types
+        id: types
         working-directory: packages/app
         run: |
           bun run typecheck
@@ -54,14 +55,12 @@ jobs:
         working-directory: packages/app
         run: >-
           bun run test:e2e:built
-          e2e/regression/new-session-workspace-branch.spec.ts
-          e2e/regression/composer-large-paste.spec.ts
-          e2e/regression/tab-navigate-mousedown.spec.ts
           e2e/smoke/session-timeline.spec.ts
-          --grep 'selects a base branch for a new workspace|keeps a 6000-line crash report editable in a new session|mobile drawer exposes close controls and navigates between tabs|renders seeded timeline in order while paging through history'
+          --grep 'renders seeded timeline in order while paging through history'
           --repeat-each=5 --retries=0
         timeout-minutes: 20
       - name: Queue regression
+        if: always() && steps.types.outcome == 'success'
         working-directory: packages/app
         run: bun run test:e2e:built e2e/regression/session-queue.spec.ts --retries=0
       - name: Upload focused traces
