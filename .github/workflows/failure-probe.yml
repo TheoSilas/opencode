@@ -20,7 +20,7 @@ jobs:
       matrix:
         include:
           - label: repaired
-            ref: f46c9486805bb46992473ac87b87778313bd2aeb
+            ref: f4b4696763c16b9d409ad1223bffe2be0c526622
     runs-on: ubuntu-latest
     env:
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.playwright-browsers
@@ -57,12 +57,8 @@ jobs:
           bun run test:e2e:built
           e2e/smoke/session-timeline.spec.ts
           --grep 'renders seeded timeline in order while paging through history'
-          --repeat-each=5 --retries=0
+          --repeat-each=5 --retries=0 --trace=retain-on-failure
         timeout-minutes: 20
-      - name: Queue regression
-        if: always() && steps.types.outcome == 'success'
-        working-directory: packages/app
-        run: bun run test:e2e:built e2e/regression/session-queue.spec.ts --retries=0
       - name: Upload focused traces
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -72,3 +68,31 @@ jobs:
             packages/app/e2e/test-results
             packages/app/e2e/playwright-report
           retention-days: 7
+  git:
+    name: Git early-exit diagnostic (${{ matrix.ref }})
+    strategy:
+      fail-fast: false
+      matrix:
+        ref: [a53d48db1c15e9d93e37a6574c655cd3c6443dd4, f4b4696763c16b9d409ad1223bffe2be0c526622]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ matrix.ref }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - uses: ./.github/actions/setup-bun
+      - name: Configure fixture Git identity
+        run: |
+          git config --global user.email 'bot@opencode.ai'
+          git config --global user.name opencode
+      - name: Repeat exact early-exit failure
+        working-directory: packages/core
+        env:
+          GITHUB_ACTIONS: 'false'
+        run: |
+          git rev-parse HEAD
+          for attempt in 1 2 3 4 5; do
+            bun run script/test.ts test/git.test.ts --test-name-pattern 'refresh handles check-ignore exit 128' || exit "$?"
+          done
