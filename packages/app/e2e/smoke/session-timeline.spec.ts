@@ -19,9 +19,16 @@ type SmokeState = {
   clientHeight: number
   errorToasts: string[]
   forbiddenText: string[]
+  observedPartIDs?: string[]
+  observedMessageIDs?: string[]
 }
 
 type SmokeWindow = Window & {
+  __timelineSmokeTraversal?: {
+    parts: Set<string>
+    messages: Set<string>
+    observer: MutationObserver
+  }
   __timelineSmokeState?: () => SmokeState
   __timelineSmokeErrorToasts?: string[]
   __timelineSmokeForbiddenText?: string[]
@@ -520,6 +527,26 @@ async function expectCanScrollToStart(
   expectedMessageIDs: string[],
   errors: string[],
 ) {
+  // Virtual rows can mount and unmount between Playwright round trips while
+  // prepending history adjusts their measured heights. Record actual DOM rows
+  // throughout traversal, rather than sampling only the final scroll snapshot.
+  await page.evaluate(() => {
+    const smoke = window as SmokeWindow
+    const parts = new Set<string>()
+    const messages = new Set<string>()
+    const record = () => {
+      const state = smoke.__timelineSmokeState?.()
+      for (const id of state?.ids ?? []) parts.add(id)
+      for (const id of state?.messageIds ?? []) messages.add(id)
+    }
+    const observer = new MutationObserver(record)
+    const scroller = [...document.querySelectorAll<HTMLElement>(".scroll-view__viewport")].find((element) =>
+      element.querySelector("[data-timeline-row]"),
+    )!
+    observer.observe(scroller, { childList: true, subtree: true, attributes: true })
+    smoke.__timelineSmokeTraversal = { parts, messages, observer }
+    record()
+  })
   await pointAtTimeline(page)
   const seenParts = new Set<string>()
   const seenMessages = new Set<string>()
@@ -541,6 +568,7 @@ async function expectCanScrollToStart(
       seenParts.size === expectedPartIDs.length &&
       seenMessages.size === expectedMessageIDs.length
     ) {
+      await page.evaluate(() => (window as SmokeWindow).__timelineSmokeTraversal?.observer.disconnect())
       expectCompleteScroll(current, expectedPartIDs, expectedMessageIDs, seenParts, seenMessages, samples)
       return
     }
@@ -555,26 +583,32 @@ async function expectCanScrollToStart(
 
   collectSeen(current, seenParts, seenMessages)
   samples.push(sampleTraversal(current, seenParts.size, seenMessages.size))
+  await page.evaluate(() => (window as SmokeWindow).__timelineSmokeTraversal?.observer.disconnect())
   expectCompleteScroll(current, expectedPartIDs, expectedMessageIDs, seenParts, seenMessages, samples)
 }
 
 async function timelineState(page: Page) {
-  return page.evaluate(
-    () =>
-      (window as SmokeWindow).__timelineSmokeState?.() ?? {
-        ids: [],
-        visibleIds: [],
-        messageIds: [],
-        visibleMessageIds: [],
-        topVisibleId: undefined,
-        signature: "",
-        scrollTop: 0,
-        scrollHeight: 0,
-        clientHeight: 0,
-        errorToasts: [],
-        forbiddenText: [],
-      },
-  )
+  return page.evaluate(() => {
+    const smoke = window as SmokeWindow
+    const state = smoke.__timelineSmokeState?.() ?? {
+      ids: [],
+      visibleIds: [],
+      messageIds: [],
+      visibleMessageIds: [],
+      topVisibleId: undefined,
+      signature: "",
+      scrollTop: 0,
+      scrollHeight: 0,
+      clientHeight: 0,
+      errorToasts: [],
+      forbiddenText: [],
+    }
+    return {
+      ...state,
+      observedPartIDs: [...(smoke.__timelineSmokeTraversal?.parts ?? [])],
+      observedMessageIDs: [...(smoke.__timelineSmokeTraversal?.messages ?? [])],
+    }
+  })
 }
 
 function timelineScroller(page: Page) {
@@ -643,6 +677,8 @@ function unique(values: string[]) {
 }
 
 function collectSeen(state: SmokeState, seenParts: Set<string>, seenMessages: Set<string>) {
+  for (const id of state.observedPartIDs ?? []) seenParts.add(id)
+  for (const id of state.observedMessageIDs ?? []) seenMessages.add(id)
   for (const id of state.ids) seenParts.add(id)
   for (const id of state.visibleIds) seenParts.add(id)
   for (const id of state.messageIds) seenMessages.add(id)
