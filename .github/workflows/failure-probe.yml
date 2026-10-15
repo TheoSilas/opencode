@@ -20,7 +20,7 @@ jobs:
       matrix:
         include:
           - label: repaired
-            ref: dbd2e920be
+            ref: dbd2e920be3c3c518ad010a0d91d7801627a1f94
     runs-on: ubuntu-latest
     env:
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.playwright-browsers
